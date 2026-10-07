@@ -12,6 +12,7 @@ ENV/
 .venv/
 
 # Project data & raw cache outputs (exclude actual scraped data, keep the folder structure)
+data/*
 data/*.html
 data/*.csv
 data/*.json
