@@ -1,0 +1,29 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Project data & raw cache outputs (exclude actual scraped data, keep the folder structure)
+data/*.html
+data/*.csv
+data/*.json
+!data/.gitkeep
+
+# IDE configuration
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
