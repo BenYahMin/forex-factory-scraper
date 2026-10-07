@@ -1,0 +1,13 @@
+forex-factory-scraper/
+├── .github/workflows/    # 
+├── src/
+│   ├── __init__.py
+│   ├── scraper.py        # Core extraction & parsing logic
+│   ├── normalizer.py     # Data cleaning, timezone handling & formatting
+│   └── storage.py        # CSV/JSON/Database export handlers
+├── data/                 # Output directory for datasets
+├── tests/                # Unit tests for parser stability
+├── .env.example          # Environment variables template
+├── .gitignore            # To be ignored during pushes
+├── requirements.txt      # Project dependencies
+└── README.md             # Documentation and usage guide
