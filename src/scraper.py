@@ -1,59 +1,52 @@
-import os
-import cloudscraper
-from bs4 import BeautifulSoup
+from pathlib import Path
+from playwright.sync_api import sync_playwright
 
-def fetch_calendar_html(local_fallback_path="data/raw_calendar.html", force_local=False):
+CACHE_PATH = Path("data/raw_calendar.html")
+TARGET_URL = "https://www.forexfactory.com/calendar"
+
+def fetch_calendar_html() -> str:
     """
-    Fetches the Forex Factory calendar page with automatic caching 
-    and a local fallback mechanism if blocked or offline.
+    Fetches the Forex Factory calendar using a stealthy browser instance 
+    to bypass Cloudflare checks.
     """
-    html_content = None
+    CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     
-    # Attempt live fetch unless force_local is specified
-    if not force_local:
-        try:
-            print("Attempting live fetch from Forex Factory...")
-            scraper = cloudscraper.create_scraper(
-                browser={
-                    'browser': 'chrome',
-                    'platform': 'windows',
-                    'desktop': True
-                }
+    try:
+        print("Launching browser for live fetch...")
+        with sync_playwright() as p:
+            # Launch with headless=False and hide automation flags
+            browser = p.chromium.launch(
+                headless=False,
+                args=["--disable-blink-features=AutomationControlled"]
             )
-            url = "https://www.forexfactory.com/calendar?week=this"
-            response = scraper.get(url, timeout=15)
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                viewport={"width": 1280, "height": 800}
+            )
+            page = context.new_page()
             
-            if response.status_code == 200:
-                html_content = response.text
-                
-                # Cache the successful response locally for offline dev & fallbacks if they happen
-                os.makedirs(os.path.dirname(local_fallback_path), exist_ok=True)
-                with open(local_fallback_path, "w", encoding="utf-8") as f:
-                    f.write(html_content)
-                print("Live fetch successful! Saved fresh copy to local cache.")
-            else:
-                print(f"Live fetch returned status code {response.status_code}. Triggering local fallback...")
-        except Exception as e:
-            print(f"Live fetch failed due to error: {e}. Triggering local fallback...")
-
-    # Fallback to local file if live fetch failed 
-    if not html_content and os.path.exists(local_fallback_path):
-        print(f"Loading HTML from local fallback file: {local_fallback_path}")
-        with open(local_fallback_path, "r", encoding="utf-8") as f:
-            html_content = f.read()
-    elif not html_content:
-        raise FileNotFoundError(
-            f"Live fetch failed and no local fallback file found at '{local_fallback_path}'. "
-            "To use manual mode, save a Forex Factory calendar HTML page to that path."
-        )
-        
-    return html_content
-
-if __name__ == "__main__":
-    # Test the fetcher module
-    html = fetch_calendar_html()
-    soup = BeautifulSoup(html, 'html.parser')
-    
-    # Quick sanity check
-    title = soup.title.string if soup.title else "No title found"
-    print(f"Successfully loaded page. Page title: {title}")
+            print(f"Navigating to {TARGET_URL}...")
+            page.goto(TARGET_URL, timeout=60000)
+            
+            print("Waiting for calendar DOM elements to render...")
+            # Give it 30 seconds and watch the browser window that pops up
+            page.wait_for_selector(".calendar__table", timeout=30000)
+            
+            html_content = page.content()
+            browser.close()
+            
+            # Save fresh copy to local cache
+            CACHE_PATH.write_text(html_content, encoding="utf-8")
+            print("Live fetch successful! Saved fresh copy to local cache.")
+            return html_content
+            
+    except Exception as e:
+        print(f"Live fetch failed or blocked: {e}")
+        if CACHE_PATH.exists():
+            print(f"Falling back to local cache: {CACHE_PATH}")
+            try:
+                return CACHE_PATH.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                return CACHE_PATH.read_text(encoding="latin-1", errors="ignore")
+        else:
+            raise RuntimeError("Live fetch failed and no local cache found at data/raw_calendar.html")
